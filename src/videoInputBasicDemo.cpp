@@ -44,7 +44,7 @@ int main( void )
     glfwInit();
 
     // Open OpenGL window    
-    if (!glfwOpenWindow(1024,768,    // Open window
+    if (!glfwOpenWindow(1920,1080,    // Open window
     24, 24, 24,                                // Red, green, and blue bits for color buffer
     24,                                        // Bits for alpha buffer
     24,                                        // Bits for depth buffer (Z-buffer)

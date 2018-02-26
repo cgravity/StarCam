@@ -292,6 +292,45 @@ void triangleApp::keyDown  (int c){
 		}
 	}
 
+	// adjust exposure
+	if (c == '.')
+	{
+		long min, max, delta, val, flags, def = 0;
+		for (int i = 0; i < numCams; i++)
+		{
+			VI.getVideoSettingCamera(i, VI.propExposure, min, max, delta, val, flags, def);
+			VI.setVideoSettingCamera(i, VI.propExposure, val + delta, 2); // exposure flag 2 means manual
+		}
+	}
+	if (c == ',')
+	{
+		long min, max, delta, val, flags, def = 0;
+		for (int i = 0; i < numCams; i++)
+		{
+			VI.getVideoSettingCamera(i, VI.propExposure, min, max, delta, val, flags, def);
+			VI.setVideoSettingCamera(i, VI.propExposure, val - delta, 2); // exposure flag 2 means manual
+		}
+	}
+	// adjust gain
+	if (c == '\'')
+	{
+		long min, max, delta, val, flags, def = 0;
+		for (int i = 0; i < numCams; i++)
+		{
+			VI.getVideoSettingFilter(i, VI.propGain, min, max, delta, val, flags, def);
+			VI.setVideoSettingFilter(i, VI.propGain, val + delta, 2); // exposure flag 2 means manual
+		}
+	}
+	if (c == ';')
+	{
+		long min, max, delta, val, flags, def = 0;
+		for (int i = 0; i < numCams; i++)
+		{
+			VI.getVideoSettingFilter(i, VI.propGain, min, max, delta, val, flags, def);
+			VI.setVideoSettingFilter(i, VI.propGain, val - delta, 2); // exposure flag 2 means manual
+		}
+	}
+
 	// start/stop recording
 	if (c == '[') recording = true;
 	if (c == ']') recording = false;
