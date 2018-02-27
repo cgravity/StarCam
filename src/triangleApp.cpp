@@ -5,6 +5,8 @@
 
 #include <iostream>
 
+#define INIT_FRAME_SAVE_BUFFER_COUNT    50
+
 void SaveRequest::save()
 {
 	char filename[80];
@@ -68,50 +70,58 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
 	return -1;  // Failure
 }
 
-void bg_save(triangleApp* app)
+void bg_save(CameraSaveThread* cst)
 {
+    triangleApp* app = cst->triangle_app;
 	static std::vector<SaveRequest> requests;
 
 	bool should_quit = false;
 
-	while (!should_quit)
-	{
-		//std::unique_lock <std::mutex> lock(app->save_mutex);
-		//app->save_cv.wait(lock);
-
-        app->save_mutex.lock();
-		requests.swap(app->save_requests);
-		should_quit = app->should_quit;
-		//lock.unlock();
-        app->save_mutex.unlock();
-
-		for (size_t i = 0; i < requests.size(); i++)
-		{
-			//requests[i].save();
-		}
-
-		app->reusable_mutex.lock();
-		for (size_t i = 0; i < requests.size(); i++)
-		{
-			app->reusable_frame_chunks.push(requests[i].data);
-			requests[i].data = NULL;
-		}
-		app->reusable_mutex.unlock();
-
-		requests.clear();
-	}
+    while(!should_quit)
+    {
+        // wait until there's work to do
+        {
+            std::unique_lock<std::mutex> lock(cst->mutex);
+            requests.swap(cst->requests);
+            should_quit = cst->should_quit;
+            
+            while(requests.size() == 0 && !should_quit)
+            {
+                cst->cv.wait(lock);
+                requests.swap(cst->requests);
+                should_quit = cst->should_quit;
+            }
+        }
+        
+        for(size_t i = 0; i < requests.size(); i++)
+        {
+            requests[i].save();
+        }
+        
+        cst->mutex.lock();
+        for(size_t i = 0; i < requests.size(); i++)
+        {
+            cst->free_buffers.push_back(requests[i].data);
+            requests[i].data = NULL;
+        }
+        cst->mutex.unlock();
+        
+        requests.clear();
+    }
 }
 
 //empty constructor
 triangleApp::triangleApp()
 {
-	save_thread = std::thread(bg_save, this);
+	//save_thread = std::thread(bg_save, this);
 }
 
 void triangleApp::init(){
 	numCams = 0;
 	recording = false;
+    one_shot_save = false;
 	draw_single_camera = -1; // draw all cameras
+    should_quit = false;
 
 	//uncomment for silent setup
 	//videoInput::setVerbose(false); 
@@ -123,6 +133,21 @@ void triangleApp::init(){
 	//for silent listDevices use listDevices(true);
 	numCams = videoInput::listDevices();	
 
+    // allocate camera threads and save-buffer memory
+    for(int i = 0; i < numCams; i++)
+    {
+        CameraSaveThread* cst = new CameraSaveThread();
+        cst->triangle_app = this;
+        cst->save_thread = std::thread(bg_save, cst);
+        save_threads.push_back(cst);
+        
+        for(int j = 0; j < INIT_FRAME_SAVE_BUFFER_COUNT; j++)
+        {
+            unsigned char* buffer = new unsigned char[1920*1080*3];
+            cst->free_buffers.push_back(buffer);
+        }
+    }
+    
 	//you can also now get the device list as a vector of strings 
 	std::vector <std::string> list = videoInput::getDeviceList(); 
 	for(int i = 0; i < list.size(); i++){
@@ -165,61 +190,65 @@ void triangleApp::init(){
 	}
 }
 
-void triangleApp::idle() {
-	static struct frame_chunks {
-		std::vector<unsigned char*> ptrs;
+void triangleApp::idle()
+{    
+    if(should_quit)
+        return;
 
-		frame_chunks(triangleApp* ta)
-		{
-			for (int i = 0; i < ta->numCams; i++)
-			{
-				ptrs.push_back(NULL);
-			}
-		}
-	} frame_chunks(this);
-
-	reusable_mutex.lock();
-	for (int i = 0; i < numCams; i++)
-	{
-		if (frame_chunks.ptrs[i] == NULL)
-		{
-			if (reusable_frame_chunks.size() > 0)
-			{
-				frame_chunks.ptrs[i] = reusable_frame_chunks.front();
-				reusable_frame_chunks.pop();
-			}
-			else
-			{
-				// FIXME: hardcoded frame size
-				frame_chunks.ptrs[i] = new unsigned char[1920 * 1080 * 3];
-			}
-		}
-	}
-	reusable_mutex.unlock();
-
-	save_mutex.lock();
+    FILETIME ft;
+    SYSTEMTIME st;
+    GetSystemTimePreciseAsFileTime(&ft);
+    FileTimeToSystemTime(&ft, &st);
+    
+    
 	for (int i = 0; i < numCams; i++) {
 		if (VI.isFrameNew(i)) {
 			VI.getPixels(i, frames[i], false);
 
-			// TODO split off writing files to separate thread
-			if (recording)
+			if (recording || one_shot_save)
 			{
-				memcpy(frame_chunks.ptrs[i], frames[i], 1920 * 1080 * 3);
-				SaveRequest request(i, frame_chunks.ptrs[i], 1920, 1080);
-				save_requests.push_back(request);
-				frame_chunks.ptrs[i] = NULL;
+                CameraSaveThread* cst = save_threads[i];
+                cst->mutex.lock();
+                    unsigned char* buffer = NULL;
+                    if(cst->free_buffers.size() > 0)
+                    {
+                        buffer = cst->free_buffers[cst->free_buffers.size()-1];
+                        cst->free_buffers.pop_back();
+                    }
+                cst->mutex.unlock();
+                
+                if(buffer == NULL)
+                    buffer = new unsigned char[1920*1080*3];
+                
+				memcpy(buffer, frames[i], 1920 * 1080 * 3);
+				SaveRequest request(i, buffer, 1920, 1080);
+                request.st = st;
+                
+                // push work to thread and signal
+                {
+                    std::unique_lock<std::mutex> lock(cst->mutex);
+                    cst->requests.push_back(request);
+                    cst->cv.notify_all();
+                }
 			}
 		}
 	}
-	save_mutex.unlock();
-	save_cv.notify_one();
+    one_shot_save = false;
 
-	for (int i = 0; i < numCams; i++)
-	{
-		//load frames into textures
-		IT[i]->loadImageData(frames[i], VI.getWidth(i), VI.getHeight(i), 0x80E0);
-	}
+    if(draw_single_camera < 0)
+    {
+        // upload all frames
+        for (int i = 0; i < numCams; i++)
+        {
+            IT[i]->loadImageData(frames[i], VI.getWidth(i), VI.getHeight(i), 0x80E0);
+        }
+    }
+    else
+    {
+        // upload only the camera we want to see
+        int i = draw_single_camera;
+        IT[i]->loadImageData(frames[i], VI.getWidth(i), VI.getHeight(i), 0x80E0);
+    }
 }
 
 
@@ -255,11 +284,19 @@ void triangleApp::keyDown  (int c){
 
 	if (c == GLFW_KEY_ESC)
 	{
-		save_mutex.lock();
-		should_quit = true;
-		save_mutex.unlock();
-		save_cv.notify_one();
+        should_quit = true;
+        
+        for(size_t i = 0; i < save_threads.size(); i++)
+        {
+            CameraSaveThread* cst = save_threads[i];
+            std::unique_lock<std::mutex> lock(cst->mutex);
+            cst->should_quit = true;
+            cst->cv.notify_all();
+        }
 	}
+    
+    if(c == GLFW_KEY_SPACE)
+        one_shot_save = true;
 
 	// settings in single camera mode
 	if(c=='S' && draw_single_camera >= 0) VI.showSettingsWindow(draw_single_camera);

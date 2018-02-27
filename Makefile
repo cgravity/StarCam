@@ -12,7 +12,7 @@ sensei.exe : $(OBJECTS)
 build/%.o : src/%.cpp $(HEADERS)
 	@echo "Compiling: $<"
 	@mkdir -p ./build
-	@$(CC) -std=c++11 -c $< -o $@ -Isrc -Iglfw/include/GL/
+	@$(CC) -O3 -std=c++11 -c $< -o $@ -Isrc -Iglfw/include/GL/
 
 clean:
 	@rm -rf build

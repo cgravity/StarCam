@@ -26,12 +26,31 @@ struct SaveRequest
 
 	SaveRequest(int which_camera, unsigned char* ptr, int w, int h) : data(ptr), width(w), height(h), camera(which_camera)
 	{
-		FILETIME ft;
-		GetSystemTimePreciseAsFileTime(&ft);
-		FileTimeToSystemTime(&ft, &st);
+//		FILETIME ft;
+//		GetSystemTimePreciseAsFileTime(&ft);
+//		FileTimeToSystemTime(&ft, &st);
 	}
 
 	void save();
+};
+
+class triangleApp;
+
+struct CameraSaveThread
+{
+    triangleApp* triangle_app;
+    
+    std::mutex mutex;   // protects requests, free_buffers, etc.
+    std::condition_variable cv; // signaled when save thread should take action
+    
+    std::vector<SaveRequest> requests;
+    std::vector<unsigned char*> free_buffers;
+    bool should_quit;
+    
+    
+    std::thread save_thread;
+    
+    CameraSaveThread() : should_quit(false) {}
 };
 
 class triangleApp : public simpleApp{
@@ -55,18 +74,11 @@ class triangleApp : public simpleApp{
 		
 		int numCams;
 		bool recording;
+        bool one_shot_save; // e.g. for camera calibration frame
 		int draw_single_camera;
-
-		std::vector<SaveRequest> save_requests;
-		std::thread save_thread;
-		std::mutex  save_mutex;
-		std::condition_variable save_cv;
-		bool should_quit;
-
-		std::queue<unsigned char*> reusable_frame_chunks;
-		std::mutex reusable_mutex;
-
-		//std::vector<Camera> cameras;
+        bool should_quit;
+        
+        std::vector<CameraSaveThread*> save_threads;
 };
 
 #endif	// _triangle_APP

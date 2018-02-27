@@ -97,7 +97,13 @@ int main( void )
         glfwSwapBuffers();
     }
 
-	TAPP.save_thread.join();
+    printf("Waiting for save threads to finish...\n");
+    for(size_t i = 0; i < TAPP.save_threads.size(); i++)
+    {
+        CameraSaveThread* cst = TAPP.save_threads[i];
+        cst->save_thread.join();
+        printf("Save thread %llu of %llu done.\n", i+1, TAPP.save_threads.size());
+	}
 
     // Close OpenGL window and terminate GLFW
     glfwTerminate();
