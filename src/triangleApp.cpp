@@ -10,8 +10,15 @@
 void SaveRequest::save()
 {
 	char filename[80];
-
-	sprintf(filename, "C://test//%d//%02d%02d%02d%03d.tga", camera, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+    char one_shot_prefix[20];
+    
+    if(need_one_shot)
+        snprintf(one_shot_prefix, sizeof(one_shot_prefix), "c_%d_", one_shot_tag);
+    else
+        one_shot_prefix[0] = '\0';
+    
+	sprintf(filename, "C://test//%d//%s%02d%02d%02d%03d.tga", camera, 
+        one_shot_prefix, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
     
     if(camera % 2 == 0)
         filename[0] = 'A';
@@ -73,7 +80,7 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
 void bg_save(CameraSaveThread* cst)
 {
     triangleApp* app = cst->triangle_app;
-	static std::vector<SaveRequest> requests;
+	std::vector<SaveRequest>& requests = cst->thread_local_requests;
 
 	bool should_quit = false;
 
@@ -82,8 +89,10 @@ void bg_save(CameraSaveThread* cst)
         // wait until there's work to do
         {
             std::unique_lock<std::mutex> lock(cst->mutex);
-            requests.swap(cst->requests);
+            requests.swap(cst->requests);     // FIXME: This causes crashes?!
             should_quit = cst->should_quit;
+            
+            
             
             while(requests.size() == 0 && !should_quit)
             {
@@ -98,13 +107,16 @@ void bg_save(CameraSaveThread* cst)
             requests[i].save();
         }
         
-        cst->mutex.lock();
-        for(size_t i = 0; i < requests.size(); i++)
         {
-            cst->free_buffers.push_back(requests[i].data);
-            requests[i].data = NULL;
+            std::unique_lock<std::mutex> lock(cst->mutex);
+            //cst->mutex.lock();
+            for(size_t i = 0; i < requests.size(); i++)
+            {
+                cst->free_buffers.push_back(requests[i].data);
+                requests[i].data = NULL;
+            }
+            //cst->mutex.unlock();
         }
-        cst->mutex.unlock();
         
         requests.clear();
     }
@@ -118,6 +130,7 @@ triangleApp::triangleApp()
 
 void triangleApp::init(){
 	numCams = 0;
+    one_shot_tag = 0;
 	recording = false;
     one_shot_save = false;
 	draw_single_camera = -1; // draw all cameras
@@ -200,22 +213,30 @@ void triangleApp::idle()
     GetSystemTimePreciseAsFileTime(&ft);
     FileTimeToSystemTime(&ft, &st);
     
+    int one_shot_save_counter = 0;
     
 	for (int i = 0; i < numCams; i++) {
 		if (VI.isFrameNew(i)) {
 			VI.getPixels(i, frames[i], false);
+            
 
 			if (recording || one_shot_save)
 			{
                 CameraSaveThread* cst = save_threads[i];
-                cst->mutex.lock();
-                    unsigned char* buffer = NULL;
+                
+                unsigned char* buffer = NULL;
+                {
+                    std::unique_lock<std::mutex> lock(cst->mutex);
+                    
+                //cst->mutex.lock();
+                    
                     if(cst->free_buffers.size() > 0)
                     {
                         buffer = cst->free_buffers[cst->free_buffers.size()-1];
                         cst->free_buffers.pop_back();
                     }
-                cst->mutex.unlock();
+                //cst->mutex.unlock();
+                }
                 
                 if(buffer == NULL)
                     buffer = new unsigned char[1920*1080*3];
@@ -227,21 +248,36 @@ void triangleApp::idle()
                 // push work to thread and signal
                 {
                     std::unique_lock<std::mutex> lock(cst->mutex);
+                    
+                    if(one_shot_save && cst->need_one_shot)
+                    {
+                        cst->need_one_shot = false;
+                        one_shot_save_counter++;
+                        request.one_shot_tag = cst->one_shot_tag;
+                        request.need_one_shot = true;
+                    }
+                    
                     cst->requests.push_back(request);
                     cst->cv.notify_all();
                 }
 			}
 		}
 	}
-    one_shot_save = false;
+    
+    if(one_shot_save && one_shot_save_counter == numCams)
+        one_shot_save = false;
 
-    if(draw_single_camera < 0)
+    if(draw_single_camera == -1)
     {
         // upload all frames
         for (int i = 0; i < numCams; i++)
         {
             IT[i]->loadImageData(frames[i], VI.getWidth(i), VI.getHeight(i), 0x80E0);
         }
+    }
+    else if(draw_single_camera == -2)
+    {
+        // don't upload anything
     }
     else
     {
@@ -296,7 +332,17 @@ void triangleApp::keyDown  (int c){
 	}
     
     if(c == GLFW_KEY_SPACE)
+    {
         one_shot_save = true;
+        one_shot_tag++;
+        for(size_t i = 0; i < save_threads.size(); i++)
+        {
+            CameraSaveThread* cst = save_threads[i];
+            std::unique_lock<std::mutex> lock(cst->mutex);
+            cst->need_one_shot = true;
+            cst->one_shot_tag = one_shot_tag;
+        }
+    }
 
 	// settings in single camera mode
 	if(c=='S' && draw_single_camera >= 0) VI.showSettingsWindow(draw_single_camera);
@@ -310,6 +356,11 @@ void triangleApp::keyDown  (int c){
 	{
 		draw_single_camera = -1;
 	}
+    
+    if(c == '-')
+    {
+        draw_single_camera = -2;
+    }
 
 	// set settings
 	if (c == 'E') {

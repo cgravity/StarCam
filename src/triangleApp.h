@@ -20,11 +20,14 @@ struct SaveRequest
 	unsigned char* data;
 	int width;
 	int height;
-
+    
 	int camera;
 	SYSTEMTIME st;
+    
+    int one_shot_tag;
+    bool need_one_shot;
 
-	SaveRequest(int which_camera, unsigned char* ptr, int w, int h) : data(ptr), width(w), height(h), camera(which_camera)
+	SaveRequest(int which_camera, unsigned char* ptr, int w, int h) : data(ptr), width(w), height(h), camera(which_camera), one_shot_tag(0x7FFFFFFF), need_one_shot(false)
 	{
 //		FILETIME ft;
 //		GetSystemTimePreciseAsFileTime(&ft);
@@ -46,8 +49,10 @@ struct CameraSaveThread
     std::vector<SaveRequest> requests;
     std::vector<unsigned char*> free_buffers;
     bool should_quit;
+    bool need_one_shot;
+    int  one_shot_tag;
     
-    
+    std::vector<SaveRequest> thread_local_requests;
     std::thread save_thread;
     
     CameraSaveThread() : should_quit(false) {}
@@ -77,6 +82,8 @@ class triangleApp : public simpleApp{
         bool one_shot_save; // e.g. for camera calibration frame
 		int draw_single_camera;
         bool should_quit;
+        
+        int one_shot_tag;
         
         std::vector<CameraSaveThread*> save_threads;
 };
