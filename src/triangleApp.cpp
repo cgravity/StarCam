@@ -377,6 +377,9 @@ void triangleApp::keyDown  (int c){
 			VI.setVideoSettingCamera(i, VI.propFocus, min, 2);
 			VI.setVideoSettingCamera(i, VI.propFocus, max, 2);
 			VI.setVideoSettingCamera(i, VI.propFocus, 42, 2);
+            
+			printf("%d Gain: %d\n", i, VI.getVideoSettingFilter(i, VI.propGain, min, max, delta, val, flags, def));
+			VI.setVideoSettingFilter(i, VI.propGain, def, 2);
 		}
 	}
 
