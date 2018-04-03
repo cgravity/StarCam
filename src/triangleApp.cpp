@@ -51,7 +51,8 @@ void SaveRequest::save()
     else
         one_shot_prefix[0] = '\0';
     
-	sprintf(filename, "C://test//%d//%s%02d%02d%02d%03d.bmp", camera, 
+	snprintf(filename, sizeof(filename),
+        "C://test//%d//%s%02d%02d%02d%03d.bmp", camera, 
         one_shot_prefix, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
     
     filename[0] = valid_drives[camera % valid_drives.size()];
