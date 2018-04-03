@@ -178,6 +178,7 @@ triangleApp::triangleApp()
 void triangleApp::init(){
     
     valid_drives.push_back('C');
+    valid_drives.push_back('C');
     valid_drives.push_back('F');
     valid_drives.push_back('G');
     valid_drives.push_back('H');

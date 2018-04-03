@@ -58,7 +58,7 @@ int main( void )
     TAPP.init();
     glfwEnable( GLFW_STICKY_KEYS );
     // Disable vertical sync (on cards that support it)
-    glfwSwapInterval( 1 );
+    glfwSwapInterval( 0 );
 
     // Main loop
     running = GL_TRUE;
