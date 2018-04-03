@@ -4,8 +4,42 @@
 #pragma comment (lib,"Gdiplus.lib")
 
 #include <iostream>
+#include <cstdint>
+#include <vector>
 
 #define INIT_FRAME_SAVE_BUFFER_COUNT    50
+
+// these values are initialized in init(); don't modify elsewhere
+std::vector<char> valid_drives;
+
+// make sure -mno-ms-bitfields is specified if compiling with MinGW
+// otherwise attribute packed is ignored (WTF?!)
+struct BMP_Header
+{
+    uint8_t signature[2]; // always ['B', 'M']
+    uint32_t file_size;
+    uint16_t reserved1;
+    uint16_t reserved2;
+    uint32_t pixel_offset;
+} __attribute__((packed));
+
+struct DIB_Header
+{
+    uint32_t dib_header_size;
+    int32_t width;
+    int32_t height;
+    uint16_t color_planes; // always 1
+    uint16_t bits_per_pixel;
+    uint32_t compression_mode;
+    uint32_t image_size;
+    uint32_t h_res_meters;
+    uint32_t v_res_meters;
+    uint32_t color_palette_count;
+    uint32_t important_colors;
+} __attribute__((packed));
+
+BMP_Header bmp_header;
+DIB_Header dib_header;
 
 void SaveRequest::save()
 {
@@ -17,32 +51,44 @@ void SaveRequest::save()
     else
         one_shot_prefix[0] = '\0';
     
-	sprintf(filename, "C://test//%d//%s%02d%02d%02d%03d.tga", camera, 
+	sprintf(filename, "C://test//%d//%s%02d%02d%02d%03d.bmp", camera, 
         one_shot_prefix, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
     
-    if(camera % 2 == 0)
-        filename[0] = 'A';
+    filename[0] = valid_drives[camera % valid_drives.size()];
+    
+    //if(camera % 2 == 0)
+    //    filename[0] = 'A';
     
 	FILE * pImgFile;
-	pImgFile = fopen(filename, "wb");
 
+	pImgFile = fopen(filename, "wb");
+    setbuf(pImgFile, NULL); // disable write buffering
+
+    // BMP header
+    fwrite(&bmp_header, sizeof(bmp_header), 1, pImgFile);
+    fwrite(&dib_header, sizeof(dib_header), 1, pImgFile);
+    
+/*
 	// TGA header
 	putc(0, pImgFile);
 	putc(0, pImgFile);
-	putc(2, pImgFile);                         /* uncompressed RGB */
+	putc(2, pImgFile);                         // uncompressed RGB
 	putc(0, pImgFile); putc(0, pImgFile);
 	putc(0, pImgFile); putc(0, pImgFile);
 	putc(0, pImgFile);
-	putc(0, pImgFile); putc(0, pImgFile);           /* X origin */
-	putc(0, pImgFile); putc(0, pImgFile);           /* y origin */
+	putc(0, pImgFile); putc(0, pImgFile);           // X origin
+	putc(0, pImgFile); putc(0, pImgFile);           // y origin
 	putc((1920 & 0x00FF), pImgFile);
 	putc((1920 & 0xFF00) / 256, pImgFile);
 	putc((1080 & 0x00FF), pImgFile);
 	putc((1080 & 0xFF00) / 256, pImgFile);
-	putc(24, pImgFile);                        /* 24 bit bitmap */
+	putc(24, pImgFile);                        // 24 bit bitmap
 	putc(0, pImgFile);
-
+*/
+    // Assumes that a row can always be divided by 4 -- otherwise,
+    // padding bytes must be added
 	fwrite(data, sizeof(unsigned char), 3*width*height, pImgFile);
+
 	fclose(pImgFile);
 }
 
@@ -129,6 +175,28 @@ triangleApp::triangleApp()
 }
 
 void triangleApp::init(){
+    
+    valid_drives.push_back('C');
+    valid_drives.push_back('F');
+    valid_drives.push_back('G');
+    valid_drives.push_back('H');
+    valid_drives.push_back('I');
+    valid_drives.push_back('J');
+    
+    memset(&bmp_header, 0, sizeof(bmp_header));
+    bmp_header.signature[0] = 'B';
+    bmp_header.signature[1] = 'M';
+    bmp_header.file_size = sizeof(bmp_header) + sizeof(dib_header) + 1920*1080*3;
+    bmp_header.pixel_offset = sizeof(dib_header);
+    
+    memset(&dib_header, 0, sizeof(dib_header));
+    dib_header.dib_header_size = sizeof(dib_header);
+    dib_header.width = 1920;
+    dib_header.height = 1080;
+    dib_header.color_planes = 1;
+    dib_header.bits_per_pixel = 24;
+    dib_header.image_size = 0;
+    
 	numCams = 0;
     one_shot_tag = 0;
 	recording = false;
@@ -423,8 +491,14 @@ void triangleApp::keyDown  (int c){
 	}
 
 	// start/stop recording
-	if (c == '[') recording = true;
-	if (c == ']') recording = false;
+	if (c == '[') {
+        recording = true;
+        printf("recording started\n");
+    }
+	if (c == ']') {
+        recording = false;
+        printf("recording stopped\n");
+    }
 }
 
 void triangleApp::mouseMove( float x, float y ){
