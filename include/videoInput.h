@@ -310,10 +310,10 @@ class videoInput{
 		bool isDeviceSetup(int deviceID);
 
 		//Returns the pixels - flipRedAndBlue toggles RGB/BGR flipping - and you can flip the image too
-		unsigned char * getPixels(int deviceID, bool flipRedAndBlue = true, bool flipImage = false);
+		unsigned char * getPixels(int deviceID, double& timestamp, bool flipRedAndBlue = true, bool flipImage = false);
 
 		//Or pass in a buffer for getPixels to fill returns true if successful.
-		bool getPixels(int id, unsigned char * pixels, bool flipRedAndBlue = true, bool flipImage = false);
+		bool getPixels(int id, unsigned char * pixels, double& timestamp, bool flipRedAndBlue = true, bool flipImage = false);
 
 		//Launches a pop up settings window
 		//For some reason in GLUT you have to call it twice each time.

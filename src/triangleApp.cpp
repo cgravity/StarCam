@@ -41,9 +41,18 @@ struct DIB_Header
 BMP_Header bmp_header;
 DIB_Header dib_header;
 
+// choose output format: comment out next line to use TGA, uncomment to use BMP
+//#define USE_BMP
+
+#ifdef USE_BMP
+    #define OUT_EXT ".bmp"
+#else
+    #define OUT_EXT ".tga"
+#endif
+
 void SaveRequest::save()
 {
-	char filename[80];
+	char filename[256];
     char one_shot_prefix[20];
     
     if(need_one_shot)
@@ -52,7 +61,7 @@ void SaveRequest::save()
         one_shot_prefix[0] = '\0';
     
 	snprintf(filename, sizeof(filename),
-        "C://test//%d//%s%02d%02d%02d%03d.bmp", camera, 
+        "C://test//%d//%s%02d_%02d_%02d_%03d" OUT_EXT, camera, 
         one_shot_prefix, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
     
     filename[0] = valid_drives[camera % valid_drives.size()];
@@ -66,10 +75,10 @@ void SaveRequest::save()
     setbuf(pImgFile, NULL); // disable write buffering
 
     // BMP header
+  #ifdef USE_BMP
     fwrite(&bmp_header, sizeof(bmp_header), 1, pImgFile);
     fwrite(&dib_header, sizeof(dib_header), 1, pImgFile);
-    
-/*
+  #else
 	// TGA header
 	putc(0, pImgFile);
 	putc(0, pImgFile);
@@ -85,7 +94,8 @@ void SaveRequest::save()
 	putc((1080 & 0xFF00) / 256, pImgFile);
 	putc(24, pImgFile);                        // 24 bit bitmap
 	putc(0, pImgFile);
-*/
+  #endif
+  
     // Assumes that a row can always be divided by 4 -- otherwise,
     // padding bytes must be added
 	fwrite(data, sizeof(unsigned char), 3*width*height, pImgFile);
@@ -248,7 +258,7 @@ void triangleApp::init(){
 	//arrives if you are only ocassionally grabbing frames
 	//you might want to set this to false as the callback caches the last
 	//frame for performance reasons. 
-	VI.setUseCallback(false);
+	VI.setUseCallback(true);
 
 	//if you want to capture at a different frame rate (default is 30) 
 	//specify it here, you are not guaranteed to get this fps though.
@@ -287,7 +297,8 @@ void triangleApp::idle()
     
 	for (int i = 0; i < numCams; i++) {
 		if (VI.isFrameNew(i)) {
-			VI.getPixels(i, frames[i], false);
+            double timestamp = 0;
+			VI.getPixels(i, frames[i], timestamp, false);
             
 
 			if (recording || one_shot_save)
@@ -314,6 +325,7 @@ void triangleApp::idle()
 				memcpy(buffer, frames[i], 1920 * 1080 * 3);
 				SaveRequest request(i, buffer, 1920, 1080);
                 request.st = st;
+                request.dshow_time = timestamp;
                 
                 // push work to thread and signal
                 {

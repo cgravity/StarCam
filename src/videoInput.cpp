@@ -170,7 +170,7 @@ public:
 
     //This method is meant to have less overhead
 	//------------------------------------------------
-    STDMETHODIMP SampleCB(double /*Time*/, IMediaSample *pSample){
+    STDMETHODIMP SampleCB(double Time, IMediaSample *pSample){
     	if(WaitForSingleObject(hEvent, 0) == WAIT_OBJECT_0) return S_OK;
 
     	HRESULT hr = pSample->GetPointer(&ptrBuffer);
@@ -182,6 +182,7 @@ public:
 	      			memcpy(pixels, ptrBuffer, latestBufferLength);
 					newFrame	= true;
 					freezeCheck = 1;
+                    time = Time;
 				LeaveCriticalSection(&critSection);
 				SetEvent(hEvent);
 			}else{
@@ -206,6 +207,7 @@ public:
 	bool bufferSetup;
 	unsigned char * pixels;
 	unsigned char * ptrBuffer;
+    double time;
 	CRITICAL_SECTION critSection;
 	HANDLE hEvent;
 };
@@ -951,7 +953,8 @@ int videoInput::getSize(int id){
 // Uses a supplied buffer
 // ----------------------------------------------------------------------
 
-bool videoInput::getPixels(int id, unsigned char * dstBuffer, bool flipRedAndBlue, bool flipImage){
+bool videoInput::getPixels(int id, unsigned char * dstBuffer, double& timestamp, 
+    bool flipRedAndBlue, bool flipImage){
 
 	bool success = false;
 
@@ -969,6 +972,7 @@ bool videoInput::getPixels(int id, unsigned char * dstBuffer, bool flipRedAndBlu
 				unsigned char * dst = dstBuffer;
 				int height 			= VDList[id]->height;
 				int width  			= VDList[id]->width;
+                timestamp = VDList[id]->sgCallback->time;
 
 				processPixels(src, dst, width, height, flipRedAndBlue, flipImage);
 				VDList[id]->sgCallback->newFrame = false;
@@ -1011,10 +1015,10 @@ bool videoInput::getPixels(int id, unsigned char * dstBuffer, bool flipRedAndBlu
 // ----------------------------------------------------------------------
 // Returns a buffer
 // ----------------------------------------------------------------------
-unsigned char * videoInput::getPixels(int id, bool flipRedAndBlue, bool flipImage){
+unsigned char * videoInput::getPixels(int id, double& timestamp, bool flipRedAndBlue, bool flipImage){
 
 	if(isDeviceSetup(id)){
-   		getPixels(id, VDList[id]->pixels, flipRedAndBlue, flipImage);
+   		getPixels(id, VDList[id]->pixels, timestamp, flipRedAndBlue, flipImage);
 	}
 
 	return VDList[id]->pixels;

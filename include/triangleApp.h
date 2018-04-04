@@ -23,11 +23,12 @@ struct SaveRequest
     
 	int camera;
 	SYSTEMTIME st;
+    double dshow_time; // time from directshow is always 0, unfortunately :(
     
     int one_shot_tag;
     bool need_one_shot;
 
-	SaveRequest(int which_camera, unsigned char* ptr, int w, int h) : data(ptr), width(w), height(h), camera(which_camera), one_shot_tag(0x7FFFFFFF), need_one_shot(false)
+	SaveRequest(int which_camera, unsigned char* ptr, int w, int h) : data(ptr), width(w), height(h), camera(which_camera), one_shot_tag(0x7FFFFFFF), need_one_shot(false), dshow_time(0.0)
 	{
 //		FILETIME ft;
 //		GetSystemTimePreciseAsFileTime(&ft);
