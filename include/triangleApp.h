@@ -77,6 +77,9 @@ class triangleApp : public simpleApp{
 
 		std::vector <imageTexture*> IT;
 		std::vector <unsigned char*> frames;
+        
+        std::vector<unsigned char*> small_image_data;
+        std::vector<imageTexture*> small_images;
 		
 		int numCams;
 		bool recording;

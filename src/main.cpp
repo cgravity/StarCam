@@ -56,7 +56,7 @@ int main( void )
     
     glfwSetKeyCallback( keyfun );
     TAPP.init();
-    glfwEnable( GLFW_STICKY_KEYS );
+    //glfwEnable( GLFW_STICKY_KEYS );
     // Disable vertical sync (on cards that support it)
     glfwSwapInterval( 0 );
 

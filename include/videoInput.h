@@ -364,7 +364,7 @@ class videoInput{
 		long propIris;
 		long propFocus;
 
-	private:
+	//private:
 
 		void setPhyCon(int deviceID, int conn);
 		void setAttemptCaptureSize(int deviceID, int w, int h);

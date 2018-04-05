@@ -189,6 +189,7 @@ void triangleApp::init(){
     
     valid_drives.push_back('C');
     valid_drives.push_back('C');
+    valid_drives.push_back('D');
     valid_drives.push_back('F');
     valid_drives.push_back('G');
     valid_drives.push_back('H');
@@ -252,6 +253,12 @@ void triangleApp::init(){
 	for (int i = 0; i < list.size(); i++) {
 		IT.push_back(new imageTexture(2048, 2048, GL_RGB));
 	}
+    
+    for(int i = 0; i < list.size(); i++)
+    {
+        small_image_data.push_back(new unsigned char[1920/4 * 1080/4 * 3]);
+        small_images.push_back(new imageTexture(1920/4, 1080/4, GL_RGB));
+    }
 
 	//by default we use a callback method
 	//this updates whenever a new frame
@@ -260,6 +267,14 @@ void triangleApp::init(){
 	//frame for performance reasons. 
 	VI.setUseCallback(true);
 
+/*
+    // restart cameras after dropped frames detected
+    for(int i = 0; i < numCams; i++)
+    {
+        VI.setAutoReconnectOnFreeze(i, true, 60);
+    }
+*/
+    
 	//if you want to capture at a different frame rate (default is 30) 
 	//specify it here, you are not guaranteed to get this fps though.
 	//VI.setIdealFramerate(dev, 60);
@@ -281,6 +296,25 @@ void triangleApp::init(){
 	for (int i = 0; i < numCams; i++) {
 		frames.push_back(new unsigned char[VI.getSize(i)]);
 	}
+}
+
+void squash_frame(unsigned char* small, unsigned char* big)
+{
+    int i = 0;
+    
+    for(int y = 0; y < 1080/4; y++)
+    for(int x = 0; x < 1920/4; x++)
+    {
+        // note: pixel selection converts BGR -> RGB
+        unsigned char r = big[3*(1920*(4*y) + (4*x)) + 2];
+        unsigned char g = big[3*(1920*(4*y) + (4*x)) + 1];
+        unsigned char b = big[3*(1920*(4*y) + (4*x)) + 0];
+        
+        small[3*i + 0] = r;
+        small[3*i + 1] = g;
+        small[3*i + 2] = b;
+        i++;
+    }
 }
 
 void triangleApp::idle()
@@ -354,7 +388,9 @@ void triangleApp::idle()
         // upload all frames
         for (int i = 0; i < numCams; i++)
         {
-            IT[i]->loadImageData(frames[i], VI.getWidth(i), VI.getHeight(i), 0x80E0);
+            //IT[i]->loadImageData(frames[i], VI.getWidth(i), VI.getHeight(i), 0x80E0);
+            squash_frame(small_image_data[i], frames[i]);
+            small_images[i]->loadImageData(small_image_data[i], 1920/4, 1080/4, GL_RGB);
         }
     }
     else if(draw_single_camera == -2)
@@ -391,7 +427,8 @@ void triangleApp::draw(){
 				draw_y += 1080 / 4;
 			}
 
-			IT[i]->renderTexture(draw_x, draw_y, 1920 / 4, 1080 / 4);
+			//IT[i]->renderTexture(draw_x, draw_y, 1920 / 4, 1080 / 4);
+            small_images[i]->renderTexture(draw_x, draw_y, 1920 / 4, 1080 / 4);
 			draw_x += 1920 / 4;
 		}
 	}
@@ -399,6 +436,13 @@ void triangleApp::draw(){
 }
 
 void triangleApp::keyDown  (int c){
+
+    if(c == 'G')
+    {
+        
+        std::cerr << "Writing graph to C:\\test\\debug_graph.grf\n";
+        VI.SaveGraphFile(VI.VDList[0]->pGraph, L"C:\\test\\debug_graph.grf");
+    }
 
 	if (c == GLFW_KEY_ESC)
 	{
@@ -433,6 +477,11 @@ void triangleApp::keyDown  (int c){
 	if (c >= '1' && c <= '8')
 	{
 		draw_single_camera = c - '1';
+        
+        if(glfwGetKey(GLFW_KEY_LSHIFT) == GLFW_PRESS)
+            draw_single_camera += 8;
+        
+        //std::cerr << "Showing view: " << VI.getDeviceName(draw_single_camera) << '\n';
 	}
 	if (c == '0')
 	{
@@ -530,5 +579,6 @@ void triangleApp::mouseDown( float x, float y, int button ){
 void triangleApp::mouseUp  ( float x, float y, int button ){
 
 }
+
 
 
