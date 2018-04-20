@@ -365,20 +365,44 @@ void triangleApp::idle()
                 {
                     std::unique_lock<std::mutex> lock(cst->mutex);
                     
+                    bool need_push = recording;
+                    
                     if(one_shot_save && cst->need_one_shot)
                     {
                         cst->need_one_shot = false;
-                        one_shot_save_counter++;
                         request.one_shot_tag = cst->one_shot_tag;
                         request.need_one_shot = true;
+                        
+                        need_push = true;
+                        
+                        printf("One shot for camera %d (of %d) [counter: %d]\n", i, numCams, one_shot_save_counter);
                     }
                     
-                    cst->requests.push_back(request);
-                    cst->cv.notify_all();
+                    if(one_shot_save)
+                    {
+                        if(cst->one_shot_tag == one_shot_tag)
+                            one_shot_save_counter++;
+                    }
+                    
+                    if(need_push)
+                    {
+                        cst->requests.push_back(request);
+                        cst->cv.notify_all();
+                    }
+                    else
+                    {
+                        cst->free_buffers.push_back(buffer);
+                    }
                 }
 			}
 		}
 	}
+    
+    if(one_shot_save)
+    {
+        printf("ONE SHOT! counter: %d\n", one_shot_save_counter);
+        fflush(stdout);
+    }
     
     if(one_shot_save && one_shot_save_counter == numCams)
         one_shot_save = false;
