@@ -24,7 +24,7 @@ void GLFWCALL keyfun( int key, int action )
        
     }
 
-    static Message msg;
+    Message msg;
     msg.write_char('k'); // key pressed
     msg.write_int32(key);  // which key
     networking->send(msg);
