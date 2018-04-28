@@ -323,7 +323,7 @@ void triangleApp::idle()
     if(should_quit)
         return;
 
-    static std::vector<Message> msgs;
+    std::vector<Message> msgs;
     networking->get_messages(msgs);
     
     for(size_t i = 0; i < msgs.size(); i++)
@@ -348,6 +348,8 @@ void triangleApp::idle()
                 break;
         }
     }
+    
+    msgs.clear();
     
     FILETIME ft;
     SYSTEMTIME st;
