@@ -338,7 +338,7 @@ void triangleApp::idle()
             case 'k':
             {
                 int key = msg.read_int32();
-                cerr << "Got key code: " << key << " " << (char)key << '\n';
+                std::cerr << "Got key code: " << key << " " << (char)key << '\n';
                 keyDown(key);
             }
             break;
