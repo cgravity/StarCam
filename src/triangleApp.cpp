@@ -1,4 +1,5 @@
 #include "triangleApp.h"
+
 #include <windows.h>
 #include <gdiplus.h>
 #pragma comment (lib,"Gdiplus.lib")
@@ -322,6 +323,31 @@ void triangleApp::idle()
     if(should_quit)
         return;
 
+    static std::vector<Message> msgs;
+    networking->get_messages(msgs);
+    
+    for(size_t i = 0; i < msgs.size(); i++)
+    {
+        Message& msg = msgs[i];
+        if(msg.size() == 0)
+            continue;
+        char code = msg.read_char();
+        
+        switch(code)
+        {
+            case 'k':
+            {
+                int key = msg.read_int32();
+                keyDown(key);
+            }
+            break;
+            
+            default:
+                fprintf(stderr, "Unimplemented msg code: %c\n", code);
+                break;
+        }
+    }
+    
     FILETIME ft;
     SYSTEMTIME st;
     GetSystemTimePreciseAsFileTime(&ft);

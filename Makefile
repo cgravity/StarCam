@@ -9,7 +9,7 @@ OBJECTS := $(SOURCES:src/%.cpp=build/%.o)
 -include local.mk
 
 sensei.exe : $(OBJECTS)
-	@$(CC) -pthread -o $@ $(OBJECTS) -Lglfw/lib-mingw -lglfw -lopengl32 -lglu32 -lgdiplus  -lddraw -ldxguid -lole32 -loleaut32 -lstrmiids -luuid
+	@$(CC) -pthread -o $@ $(OBJECTS) -Lglfw/lib-mingw -lglfw -lopengl32 -lglu32 -lgdiplus  -lddraw -ldxguid -lole32 -loleaut32 -lstrmiids -luuid -lws2_32
 
 build/%.o : src/%.cpp $(HEADERS)
 	@echo "Compiling: $<"

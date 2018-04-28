@@ -1,5 +1,8 @@
 #ifndef _TRIANGLE_APP
 
+#include "network.h"
+extern NetworkThread* networking;
+
 #include <stdio.h>
 #include "glfw.h"
 #include "simpleApp.h"

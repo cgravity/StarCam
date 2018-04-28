@@ -3,6 +3,10 @@
 
 #include "stdafx.h"
 triangleApp TAPP;
+
+
+#include "network.h"
+NetworkThread* networking = NULL;
 	 
 
 void GLFWCALL keyfun( int key, int action )
@@ -20,6 +24,11 @@ void GLFWCALL keyfun( int key, int action )
        
     }
 
+    static Message msg;
+    msg.write_char('k'); // key pressed
+    msg.write_int32(key);  // which key
+    networking->send(msg);
+    
 	TAPP.keyDown(key);
 
     fflush( stdout );
@@ -28,13 +37,23 @@ void GLFWCALL keyfun( int key, int action )
 
 
 
-
-
-
 int main( void )
 {
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2,2), &wsaData);
+    
+    char my_hostname[1024];
+    memset(my_hostname, 0, sizeof(my_hostname));
+    gethostname(my_hostname, sizeof(my_hostname));
+    printf("my hostname: \"%s\"\n", my_hostname);
+    
+    if(strcmp(my_hostname, "sensei-box") == 0)
+        networking = new Server();
+    else
+        networking = new Client("10.0.0.2");
 
-
+    networking->start_thread();
+    
     int     width, height, running, frames, x, y;
     double  t, t0, fps;
     char    titlestr[ 200 ];
