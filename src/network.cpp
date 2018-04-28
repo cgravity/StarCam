@@ -195,7 +195,24 @@ void Client::start_thread()
     
     if(connect(sock_fd, (struct sockaddr*)&sa, sizeof(sa)) == -1)
     {
-        perror("connect");
+        //perror("connect");
+        int error_code = WSAGetLastError();
+        
+        char error_msg[256];
+        memset(error_msg, 0, sizeof(error_msg));
+        
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL,
+            error_code,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            error_msg,
+            sizeof(error_msg),
+            NULL);
+        
+        fprintf(stderr, "connect error (code %d): %s\n",
+            error_code,
+            error_msg);
+            
         exit(EXIT_FAILURE);
     }
     
