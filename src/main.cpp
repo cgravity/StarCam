@@ -50,7 +50,7 @@ int main( void )
     if(strcmp(my_hostname, "sensei-box") == 0)
         networking = new Server();
     else
-        networking = new Client("10.0.0.2");
+        networking = new Client("10.0.0.1");
 
     networking->start_thread();
     
