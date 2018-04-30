@@ -12,15 +12,19 @@ output_base_path = "/mnt/c/sensei-data/"
 
 now = datetime.datetime.now().isoformat().replace(':','-')
 
+def make_output_dirs():
+    for cam in cams:
+        dst_path = os.path.join(output_base_path, now, cam)
+        
+        if not os.path.exists(dst_path):
+            os.makedirs(dst_path)
+            
 def copy(from_drive):
     for cam in cams:
         src_path = os.path.join("/mnt", from_drive, "test", cam)
         dst_path = os.path.join(output_base_path, now, cam)
         
-	print "[", from_drive, cam, "] copy", src_path, "->", dst_path
-
-        if not os.path.exists(dst_path):
-            os.makedirs(dst_path)
+        print "[", from_drive, cam, "] copy", src_path, "->", dst_path
         
         for entry in os.listdir(src_path):
             src_file = os.path.join(src_path, entry)
@@ -40,6 +44,10 @@ def drain(from_drive):
     copy(from_drive)
     clean(from_drive)
 
+print "Creating output directories..."
+make_output_dirs()
+
 pool = Pool(8)
 pool.map(drain, drives)
 
+print "Done"
