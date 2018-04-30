@@ -59,7 +59,7 @@ void SaveRequest::save()
     char one_shot_prefix[20];
     
     if(need_one_shot)
-        snprintf(one_shot_prefix, sizeof(one_shot_prefix), "c_%d_", one_shot_tag);
+        snprintf(one_shot_prefix, sizeof(one_shot_prefix), "c_%03d_", one_shot_tag);
     else
         one_shot_prefix[0] = '\0';
     
