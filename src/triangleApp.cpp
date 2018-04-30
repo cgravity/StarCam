@@ -612,10 +612,16 @@ void triangleApp::keyDown  (int c){
 	if (c == '[') {
         recording = true;
         printf("recording started\n");
+        
+        // disable preview to improve capture performance
+        draw_single_camera = -2; 
     }
 	if (c == ']') {
         recording = false;
         printf("recording stopped\n");
+        
+        // re-enable preview (show all cameras)
+        draw_single_camera = -1;
     }
 }
 
