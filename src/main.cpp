@@ -35,7 +35,7 @@ void GLFWCALL keyfun( int key, int action )
 }
 
 
-
+int camera_offset = 0;
 
 int main( void )
 {
@@ -48,9 +48,15 @@ int main( void )
     printf("my hostname: \"%s\"\n", my_hostname);
     
     if(strcmp(my_hostname, "sensei-box") == 0)
+    {
         networking = new Server();
+        camera_offset = 0;
+    }
     else
+    {
         networking = new Client("10.0.0.1");
+        camera_offset = 8;
+    }
 
     networking->start_thread();
     

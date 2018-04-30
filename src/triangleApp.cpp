@@ -51,6 +51,8 @@ DIB_Header dib_header;
     #define OUT_EXT ".tga"
 #endif
 
+extern int camera_offset;
+
 void SaveRequest::save()
 {
 	char filename[256];
@@ -62,7 +64,7 @@ void SaveRequest::save()
         one_shot_prefix[0] = '\0';
     
 	snprintf(filename, sizeof(filename),
-        "C://test//%d//%s%02d_%02d_%02d_%03d" OUT_EXT, camera, 
+        "C://test//%d//%s%02d_%02d_%02d_%03d" OUT_EXT, camera + camera_offset, 
         one_shot_prefix, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
     
     filename[0] = valid_drives[camera % valid_drives.size()];
